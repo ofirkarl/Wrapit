@@ -1071,6 +1071,8 @@ body{overflow-x:clip}
 .tile .v .vtxt{font-size:17px;line-height:1.25;display:inline-block}
 #bd .ln.sumw{font-weight:700;border-top:1px dashed color-mix(in srgb,currentColor 30%,transparent);padding-top:6px;margin-top:4px}
 #bd .bdsep{font-size:12px;font-weight:700;opacity:.6;margin:10px 0 2px}
+.miscbox .mrow+.mrow{margin-top:8px}.miscbox .mrow{position:relative}.miscbox .mdel{position:absolute;left:6px;top:6px;width:28px;height:28px;border:0;border-radius:50%;background:transparent;color:var(--muted);display:grid;place-items:center;cursor:pointer}
+.miscbox .miscadd{margin-top:8px;border:0;background:transparent;color:var(--accent);font:inherit;font-size:14px;font-weight:600;display:inline-flex;align-items:center;gap:4px;cursor:pointer;padding:4px 2px}
 .miscbox .mbx{display:flex;flex-direction:column;border-radius:14px;overflow:hidden;background:var(--up)}
 .miscbox .mbx input{border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important;margin:0!important;width:100%}
 .miscbox .mbx input+input{border-top:1.5px solid color-mix(in srgb,var(--ink,currentColor) 14%,transparent)!important}
@@ -3254,6 +3256,13 @@ document.addEventListener("keydown",e=>{
 });
 
 function fld(label,html,cls){return `<label class="f ${cls||""}">${label}${html}</label>`}
+// שונות: כמה הוצאות ביום. השורה הראשונה נשארת f_miscDesc/f_misc; r.misc = סכום כולן, r.miscItems = הפירוט (כשיש יותר מאחת)
+function miscRowHtml(d,a,first){return `<div class="mbx mrow">${first?inp("f_miscDesc",d,"text",'placeholder="פירוט — למשל: אוכל, חניה" aria-label="פירוט שונות"'):`<input type="text" value="${esc(d)}" placeholder="פירוט" aria-label="פירוט הוצאה">`}${first?inp("f_misc",a,"number",'step="1" inputmode="decimal" placeholder="סכום ₪" aria-label="סכום שונות"'):`<input type="number" step="1" inputmode="decimal" value="${esc(a)}" placeholder="סכום ₪" aria-label="סכום הוצאה">`}${first?"":`<button type="button" class="mdel" aria-label="הסר הוצאה">${ico("x",14)}</button>`}</div>`}
+function miscRowsHtml(x){const it=Array.isArray(x.miscItems)&&x.miscItems.length?x.miscItems:[{d:x.miscDesc||"",a:x.misc||""}];return it.map((m,i)=>miscRowHtml(m.d||"",m.a||"",i===0)).join("")}
+function wireMisc(){const box=$("miscRows");if(!box)return;const kick=()=>$("f_misc").dispatchEvent(new Event("input"));
+  const wire=row=>{row.querySelectorAll("input").forEach(i=>{if(!i.id)i.addEventListener("input",kick)});const del=row.querySelector(".mdel");if(del)del.onclick=()=>{row.remove();kick()}};
+  box.querySelectorAll(".mrow").forEach(wire);
+  $("miscAdd").onclick=()=>{box.insertAdjacentHTML("beforeend",miscRowHtml("","",false));const row=box.lastElementChild;wire(row);row.querySelector("input").focus()}}
 function inp(id,val,type="text",extra=""){return `<input id="${id}" type="${type}" value="${esc(val??"")}" ${extra}>`}
 
 /* ---------- invoice details ---------- */
@@ -3622,7 +3631,7 @@ function openForm(r,preset){
         </details>
         <label class="check full c-promo"><input type="checkbox" id="f_pnight" ${x.promoNight?"checked":""}> תוספת לילה (20% מהיומית)</label>
       </div>
-      ${fld("שונות",`<div class="mbx">${inp("f_miscDesc",x.miscDesc||"","text",'placeholder="פירוט — למשל: אוכל, חניה" aria-label="פירוט שונות"')}${inp("f_misc",x.misc||"","number",'step="1" inputmode="decimal" placeholder="סכום ₪" aria-label="סכום שונות"')}</div>`,"full miscbox")}
+      ${fld("שונות",`<div id="miscRows">${miscRowsHtml(x)}</div><button type="button" class="miscadd" id="miscAdd">${ico("plus",14)} הוצאה נוספת</button>`,"full miscbox")}
       </div></details>
       <div class="bd" id="bd"></div>
       ${invFold(x)}
@@ -3683,7 +3692,7 @@ function readForm(){
     d.travel100=num(v("f_t100"));d.travel150=num(v("f_t150"));d.travel200=num(v("f_t200"));d.promoType=num(v("f_ptype"))||1;d.promoNight=$("f_pnight").checked;d.calc=d.calc||"drama";
     for(const [k,id] of [["wkAmt","f_wkAmt"]]){const vv=v(id);if(vv==="")delete d[k];else d[k]=num(vv)}
     if(v("f_wkType"))d.wkType=v("f_wkType");else delete d.wkType;
-    ["cBase","cHourly","cT1h","cT1p","cT2h","cT2p","cRestP"].forEach(k=>delete d[k]);d.car=$("f_car").checked;if(S.fCarAll!=null)d.carOwn=!S.fCarAll;d.eq=$("f_eq").checked;{const ep=v("f_eqPrice");d.eqPrice=ep===""?null:num(ep)}d.eqDesc=v("f_eqDesc").trim();{const cp=v("f_carPrice");d.carPrice=cp===""||num(cp)===num(actSettings().carRate)?null:num(cp)}d.misc=num(v("f_misc"));d.miscDesc=v("f_miscDesc").trim();{const ta=v("f_travelAmt");d.travelAmt=ta===""?null:num(ta)}d.fuelAmt=num(v("f_fuelAmt"))||0;
+    ["cBase","cHourly","cT1h","cT1p","cT2h","cT2p","cRestP"].forEach(k=>delete d[k]);d.car=$("f_car").checked;if(S.fCarAll!=null)d.carOwn=!S.fCarAll;d.eq=$("f_eq").checked;{const ep=v("f_eqPrice");d.eqPrice=ep===""?null:num(ep)}d.eqDesc=v("f_eqDesc").trim();{const cp=v("f_carPrice");d.carPrice=cp===""||num(cp)===num(actSettings().carRate)?null:num(cp)}{const it=[...document.querySelectorAll("#miscRows .mrow")].map(r=>{const i=r.querySelectorAll("input");return {d:i[0].value.trim(),a:num(i[1].value)}}).filter(m=>m.d||m.a);d.misc=it.reduce((t,m)=>t+m.a,0);d.miscDesc=it.map(m=>m.d).filter(Boolean).join(" · ");if(it.length>1)d.miscItems=it;else delete d.miscItems}{const ta=v("f_travelAmt");d.travelAmt=ta===""?null:num(ta)}d.fuelAmt=num(v("f_fuelAmt"))||0;
     d.prep=num(v("f_prep"));if(d.dayType==="prep")d.prepLen=v("f_prepLen")||"half";delete d.extras;delete d.overtime;delete d.otManual;delete d.hours;
     if(d.otManualEdit){d.otOverride=v("f_ot")===""?null:num(v("f_ot"))}
   }else{d.equipment=v("f_equipment").trim();d.total=v("f_total_g")===""?null:num(v("f_total_g"))}
@@ -3712,6 +3721,7 @@ function linkedPrepAmount(name,date){
 }
 function bdLine(k,v,note){return v?`<div class="ln"><span>${k}${note?` <span class="sub">${note}</span>`:""}</span><b>${money(v)}</b></div>`:""}
 function wireWorkForm(){
+  wireMisc();
   if($("fCsLoad")){$("fCsLoad").onclick=csLoadForForm;$("fCsView").onclick=()=>{if(S.draft&&S.draft.csFile)csView(S.draft.csFile)};
     $("fCsReset").onclick=()=>{const d=S.draft;delete d.csFile;delete d.csx;delete d.csCall;delete d.csSrc;$("fCsView").hidden=true;$("fCsReset").hidden=true;$("fCsLoad").hidden=false;$("fCsMsg").textContent="";csHints();$("fCsLoad").focus()};csHints()}
   if($("fCalc"))$("fCalc").onclick=()=>{const d=readForm();const k=baseName(d.production);if(d.kind!=="work"||!k){toast("צריך שם הפקה");$("f_production")&&$("f_production").focus();return}
@@ -4346,8 +4356,10 @@ function buildLines(rows){
     const nm=k==="travel"&&rr.some(r=>(calcFor(r)||{}).travelManual)?"נסיעות":t;
     out.push({key:"add_"+k,description:nm,quantity:1,price:R2(rr.reduce((s,r)=>s+num(calcFor(r)[k]),0)),ids:rr.map(r=>r.id)})}
   {const mr=work.filter(r=>num((calcFor(r)||{}).misc)!==0);const by=new Map();
-    for(const r of mr){const d=(r.miscDesc||"").trim()||"שונות";if(!by.has(d))by.set(d,[]);by.get(d).push(r)}
-    for(const [d,rr] of by)out.push({key:"misc_"+d,description:d,quantity:1,price:R2(rr.reduce((s,r)=>s+num(calcFor(r).misc),0)),ids:rr.map(r=>r.id)})}
+    // כל הוצאה בשורה משלה (לפי הפירוט); כמה הוצאות באותו יום מתפצלות
+    for(const r of mr){const its=Array.isArray(r.miscItems)&&r.miscItems.length>1?r.miscItems:[{d:r.miscDesc,a:calcFor(r).misc}];
+      for(const it of its){if(!num(it.a))continue;const d=(it.d||"").trim()||"שונות";if(!by.has(d))by.set(d,{ids:new Set(),sum:0});const g=by.get(d);g.ids.add(r.id);g.sum+=num(it.a)}}
+    for(const [d,g] of by)out.push({key:"misc_"+d,description:d,quantity:1,price:R2(g.sum),ids:[...g.ids]})}
   if(fuR.length)out.push({key:"fuel",description:"החזר דלק",quantity:1,price:R2(fuR.reduce((s,r)=>s+calcFor(r).fuel,0)),ids:fuR.map(r=>r.id)});
   const carR=work.filter(r=>(calcFor(r)||{}).car>0);
   if(carR.length){const mon=carR.filter(r=>num(r.carPrice)>CAR_MONTH_MIN),days=carR.length-mon.length;
