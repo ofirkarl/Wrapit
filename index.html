@@ -153,6 +153,9 @@ tfoot td{font-weight:700;border-bottom:0}
 .empty{padding:36px 16px;text-align:center;color:var(--muted)}
 .empty .btn{margin-top:10px}
 .cards{display:none}
+/* ריזו: גם במחשב — אותו ממשק כמו בטלפון (כרטיסים מקובצים לפי הפקה), בעמודה במרכז */
+[data-skin="riso"] .tablewrap{display:none!important}[data-skin="riso"] .cards{display:block!important}
+@media (min-width:761px){[data-skin="riso"] .wrap{max-width:600px;margin-left:auto;margin-right:auto}}
 @media (max-width:760px){
   .tablewrap{display:none}
   .cards{display:block}
