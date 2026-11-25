@@ -2029,7 +2029,8 @@ async function cfFill(buf,job){
   const placed=[];
   for(const r of inRange){const i=Math.round((Date.parse(r.date+"T00:00:00Z")-Date.parse(start+"T00:00:00Z"))/864e5);const R=F.r0+i;const c=job.calc&&job.calc.get(r.id)||{};
     const notes=[];const prev=A.val(F.note+R);if(prev&&String(prev).trim())notes.push(String(prev).trim());
-    let misc=num(r.misc);if(num(r.misc)&&r.miscDesc)notes.push(r.miscDesc);
+    // הוצאות "שונות" של היום נכנסות לחשבונית בלבד, לא למחשבון האיגוד
+    let misc=0;
     if(r.dayType==="prep"){// יום הכנה: בלי שעות — הסכום (יום מלא או חצי) בעמודת השונות, תיאור "הכנה"
       misc+=num(r.prep);notes.push(prepLabel(r));const trv=num(c.rings)+num(c.travel);if(trv){misc+=trv;notes.push("נסיעות")}}
     else{
@@ -4582,8 +4583,9 @@ $("copyBtn").onclick=async()=>{
 const CF_LABEL={drama:"המחשבון הורוד",drama2:"מחשבון ההסכם החדש",doco:"מחשבון דוקו וחד-יומי",promo:"מחשבון פרסומות ופרומו"};
 const CF_NAME0="אופיר קרלשטט",CF_ROLE0="פוקוס פולר";
 function u8b64(u){let s="";for(let i=0;i<u.length;i+=8192)s+=String.fromCharCode.apply(null,u.subarray(i,i+8192));return btoa(s)}
-const CF_SIGK=["date","dayType","start","end","daily","prep","exc","bfSkip","lunchLate","thirdLate","mealShort","ringGo","ringBack","travel100","travel150","travel200","trGo","trBack","travelAmt","fuelAmt","prepLen","misc","car","carPrice","eq","eqPrice","promoType","promoNight","calc"];
-function cfSig(r){const s=JSON.stringify(CF_SIGK.map(k=>r[k]===undefined||r[k]===null?"":String(r[k])));let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return (h>>>0).toString(36)}
+const CF_SIGK=["date","dayType","start","end","daily","prep","exc","bfSkip","lunchLate","thirdLate","mealShort","ringGo","ringBack","travel100","travel150","travel200","trGo","trBack","travelAmt","fuelAmt","prepLen","car","carPrice","eq","eqPrice","promoType","promoNight","calc"];
+const CF_SIGK1=[...CF_SIGK.slice(0,21),"misc",...CF_SIGK.slice(21)];
+function cfSig(r){const s=JSON.stringify(CF_SIGK1.map(k=>r[k]===undefined||r[k]===null?"":String(r[k])));let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return (h>>>0).toString(36)}
 const cfAmt=r=>{const c=calcFor(r);return c?c.total-num(c.car)-num(c.equip)-num(c.fuel):total(r)};
 const CF_FL={date:"תאריך",dayType:"סוג יום",start:"שעת התחלה",end:"שעת סיום",daily:"יומית",prep:"סכום הכנה",exc:"חריגה",bfSkip:"דילוג בוקר",lunchLate:"איחור צהריים",thirdLate:"איחור ארוחה שלישית",mealShort:"ארוחה מקוצרת",ringGo:"טבעת הלוך",ringBack:"טבעת חזור",travel100:"נסיעות 100%",travel150:"נסיעות 150%",travel200:"נסיעות 200%",trGo:"נסיעה הלוך",trBack:"נסיעה חזור",travelAmt:"נסיעות (סכום)",fuelAmt:"החזר דלק",prepLen:"אורך הכנה",misc:"שונות",car:"רכב",carPrice:"מחיר רכב",eq:"ציוד",eqPrice:"מחיר ציוד",promoType:"סוג פרומו",promoNight:"לילה (פרומו)",calc:"סוג מחשבון"};
 const cfVals=r=>{const o={};for(const k of CF_SIGK){const v=r[k];if(v===undefined||v===null||v===""||v===false||v===0||v==="0")continue;o[k]=String(v)}return o};
@@ -4593,9 +4595,9 @@ const cfSent=(r,extra)=>({at:ymd(new Date()),v:2,sig:cfSig2(r),vals:cfVals(r),..
 const CF_NEWK=["trGo","trBack","travelAmt","fuelAmt","prepLen","calc","promoType","promoNight","car","carPrice","eq","eqPrice","misc","mealShort","thirdLate","exc"],cfLegacyC=new Map();
 function cfLegacyOk(r){const cur=cfSig(r),ck=r.id+"|"+cur+"|"+r.calcSent.sig;if(cfLegacyC.has(ck))return cfLegacyC.get(ck);
   const emp=CF_NEWK.filter(k=>r[k]===undefined||r[k]===null||r[k]==="").slice(0,12);let ok=false;
-  for(let m=1;m<(1<<emp.length)&&!ok;m++){const drop=new Set(emp.filter((_,i)=>m&(1<<i)));const s=JSON.stringify(CF_SIGK.filter(k=>!drop.has(k)).map(k=>r[k]===undefined||r[k]===null?"":String(r[k])));let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;if((h>>>0).toString(36)===r.calcSent.sig)ok=true}
+  for(let m=1;m<(1<<emp.length)&&!ok;m++){const drop=new Set(emp.filter((_,i)=>m&(1<<i)));const s=JSON.stringify(CF_SIGK1.filter(k=>!drop.has(k)).map(k=>r[k]===undefined||r[k]===null?"":String(r[k])));let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;if((h>>>0).toString(36)===r.calcSent.sig)ok=true}
   cfLegacyC.set(ck,ok);return ok}
-const cfState=r=>{const c=r.calcSent;if(!c)return "";if(c.v===2)return c.sig===cfSig2(r)?"sent":"changed";return c.sig===cfSig(r)||cfLegacyOk(r)?"sent":"changed"};
+const cfState=r=>{const c=r.calcSent;if(!c)return "";if(c.v===2){if(c.sig===cfSig2(r))return "sent";if(c.vals){const d=cfDiff(r);return d&&!d.length?"sent":"changed"}return "changed"}return c.sig===cfSig(r)||cfLegacyOk(r)?"sent":"changed"};
 function cfDiff(r){const c=r.calcSent;if(!c||c.v!==2||!c.vals)return null;const now=cfVals(r),out=[];for(const k of CF_SIGK){const a=c.vals[k]||"",b=now[k]||"";if(a!==b)out.push({k,l:CF_FL[k]||k,a,b})}return out}
 function cfProdRows(key){return [...S.rows.values()].filter(r=>r.kind==="work"&&!r.deleted&&baseName(r.production)===key).sort((a,b)=>a.date.localeCompare(b.date))}
 function cfFamOf(rows){const cnt={};rows.filter(r=>r.dayType!=="prep").forEach(r=>{const f=r.calc||"drama";cnt[f]=(cnt[f]||0)+1});const t=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0];return t?t[0]:"drama"}
@@ -4772,7 +4774,7 @@ function fmSiblings(){const e=S.editing;if(!e||e.kind!=="work")return null;const
     if(lock!==1)return;dx=X;side(dx>=0?1:-1);move()});
   const end=e=>{if(e.pointerId!==pid)return;if(!on||lock!==1||!G){on=false;return}on=false;quiet=Date.now()+500;finish(Math.abs(dx)>Math.min(90,innerWidth*.22))};
   ov.addEventListener("pointerup",end);ov.addEventListener("pointercancel",e=>{if(e.pointerId!==pid)return;if(G){dx=0;finish(false)}on=false})})();
-if(location.hostname==="localhost")window.__T={compResolve,openForm,toast,cfSent,compKey,syncFromCalendar,delRow,csParse,pdfPages,buildLines,openInvoices,invGroups,clockAuto,getClock,cfOpenSend,cfBuild,cfFill,cfMakeMonth,cfRowSig,cfSharedMap,CF_FAM,xlDateS,recalc,render,putRow,cfOpen,zipOpen,PayEngine,actSettings,ZMANIM,S,get computeAll(){return computeAll}};
+if(location.hostname==="localhost")window.__T={cfState,compResolve,openForm,toast,cfSent,compKey,syncFromCalendar,delRow,csParse,pdfPages,buildLines,openInvoices,invGroups,clockAuto,getClock,cfOpenSend,cfBuild,cfFill,cfMakeMonth,cfRowSig,cfSharedMap,CF_FAM,xlDateS,recalc,render,putRow,cfOpen,zipOpen,PayEngine,actSettings,ZMANIM,S,get computeAll(){return computeAll}};
 /* ---------- boot ---------- */
 if(SA&&"serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 render();
