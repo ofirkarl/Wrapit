@@ -2,10 +2,10 @@ name = "wrapit-gate"
 main = "gate.js"
 compatibility_date = "2024-11-01"
 
-# wrangler kv namespace create TOKENS  →  העתק את ה-id שמתקבל לכאן
+# KV: wrapit-tokens
 [[kv_namespaces]]
 binding = "TOKENS"
-id = "REPLACE_WITH_KV_ID"
+id = "9e4f494e79bc44579e3f8344b11dae16"
 
 [vars]
 GOOGLE_CLIENT_ID = "64711186711-mupvc3dcjbqb35k42ggembit3tppqq48.apps.googleusercontent.com"
@@ -16,3 +16,6 @@ ALLOWED_ORIGINS = "https://ofirkarl.github.io"
 #   wrangler secret put GOOGLE_CLIENT_SECRET
 #   wrangler secret put ALLOWED_EMAILS   ← המייל שלך (אפשר כמה, מופרדים בפסיק)
 #   wrangler secret put MCP_URL      ← כתובת המחבר של חשבונית ירוקה, כמו שהיא מוגדרת ב-claude.ai
+
+# סודות קיימים בדשבורד נשמרים בפריסה
+keep_vars = true
