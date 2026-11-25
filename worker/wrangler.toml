@@ -16,6 +16,3 @@ ALLOWED_ORIGINS = "https://ofirkarl.github.io"
 #   wrangler secret put GOOGLE_CLIENT_SECRET
 #   wrangler secret put ALLOWED_EMAILS   ← המייל שלך (אפשר כמה, מופרדים בפסיק)
 #   wrangler secret put MCP_URL      ← כתובת המחבר של חשבונית ירוקה, כמו שהיא מוגדרת ב-claude.ai
-
-# סודות קיימים בדשבורד נשמרים בפריסה
-keep_vars = true
