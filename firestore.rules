@@ -1,0 +1,12 @@
+rules_version = '2';
+// כל משתמש רואה וכותב רק את הנתונים שלו. החלף את כתובת המייל בכתובת שלך.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null
+        && request.auth.uid == uid
+        && request.auth.token.email in ['REPLACE@gmail.com']
+        && request.auth.token.email_verified == true;
+    }
+  }
+}
