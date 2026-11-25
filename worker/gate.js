@@ -1,4 +1,4 @@
-/* wrapit gate — Cloudflare Worker
+/* wrapit gate — Cloudflare Worker (נפרס אוטומטית מ-GitHub, תיקייה worker/)
  * מחבר בין האפליקציה העצמאית לבין:
  *   1. Google OAuth — מחליף קוד הרשאה ב-refresh token ושומר אותו ב-KV, ומנפיק access tokens לאפליקציה
  *   2. שרת ה-MCP הקיים של חשבונית ירוקה / diff-e-rent — מעביר אליו קריאות כלים
