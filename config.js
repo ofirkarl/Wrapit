@@ -8,5 +8,5 @@ window.WRAPIT_CONFIG = {
   },
   googleClientId: "64711186711-mupvc3dcjbqb35k42ggembit3tppqq48.apps.googleusercontent.com",
   // כתובת ה-Worker (worker/gate.js) אחרי פריסה
-  gateUrl: "https://wrapit-gate.REPLACE.workers.dev",
+  gateUrl: "https://wrapit-gate.ofirkarl.workers.dev",
 };
