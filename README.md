@@ -50,7 +50,7 @@ npx wrangler deploy
 את הכתובת שמתקבלת (`https://wrapit-gate.<...>.workers.dev`) מכניסים ל-`gateUrl` ב-`config.js`.
 
 ### 4. GitHub Pages
-**Settings → Pages → Deploy from a branch**, ענף `main`, תיקייה `/ (root)`. האפליקציה תהיה בכתובת `https://ofirkarl.github.io/Wrait/`.
+**Settings → Pages → Deploy from a branch**, ענף `main`, תיקייה `/ (root)`. האפליקציה תהיה בכתובת `https://ofirkarl.github.io/wrapit/`.
 
 ### 5. העברת הנתונים מ-Claude
 1. בגרסה שבתוך Claude: **הגדרות → גיבוי נתונים → ייצוא לקובץ**.
