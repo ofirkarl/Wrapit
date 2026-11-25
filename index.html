@@ -3316,11 +3316,12 @@ function wireInv(d,onChange){
 const MIN_OPTS=(max,stepM)=>{let o='<option value="0">—</option>';for(let m=stepM;m<=max;m+=stepM)o+=`<option value="${m}">${Math.floor(m/60)?Math.floor(m/60)+":"+pad(m%60):m+" דק׳"}</option>`;return o};
 const RING_OPTS=()=>'<option value="">ללא</option>'+[1,2,3,4,5,6,7].map(i=>`<option value="טבעת ${i}">טבעת ${i} (${money(num(actSettings().ringFees[i-1]))})</option>`).join("");
 /* ---------- שעון נוכחות (עובד גם בלי אינטרנט) ---------- */
-// עיגול שעות ל-5 דקות: סיום תמיד למעלה, התחלה תמיד למטה (אין שעות כמו 20:57)
-const r5=(hm,up)=>{const m=/^(\d\d):(\d\d)$/.exec(hm||"");if(!m)return hm;let t=+m[1]*60+ +m[2];t=up?Math.ceil(t/5)*5:Math.floor(t/5)*5;t=(t+1440)%1440;return pad(Math.floor(t/60))+":"+pad(t%60)};
-const ts5=(ts,up)=>{const q=3e5,d=new Date(ts);d.setSeconds(0,0);const t=d.getTime();return up?Math.ceil(t/q)*q:Math.floor(t/q)*q};
+// עיגול שעות: סיום תמיד למעלה לרבע שעה (01:20 → 01:30), התחלה תמיד למטה ל-5 דקות
+const END_Q=15;
+const r5=(hm,up,q)=>{const m=/^(\d\d):(\d\d)$/.exec(hm||"");if(!m)return hm;let t=+m[1]*60+ +m[2];const u=q||(up?END_Q:5);t=up?Math.ceil(t/u)*u:Math.floor(t/u)*u;t=(t+1440)%1440;return pad(Math.floor(t/60))+":"+pad(t%60)};
+const ts5=(ts,up)=>{const q=(up?END_Q:5)*6e4,d=new Date(ts);d.setSeconds(0,0);const t=d.getTime();return up?Math.ceil(t/q)*q:Math.floor(t/q)*q};
 function roundOld(){if(S.r5Done||S.store==="none"||!S.rows.size||(S.store==="db"&&!S.srvLoaded))return;S.r5Done=1;const ch=[];
-  for(const r of S.rows.values()){if(r.kind!=="work"||r.invoice||r.invDoc||r.paid)continue;const a=r5(r.start,false),b=r.endEst?r.end:r5(r.end,true);if((r.start&&a!==r.start)||(r.end&&b!==r.end))ch.push({...r,start:r.start?a:r.start,end:r.end?b:r.end})}
+  for(const r of S.rows.values()){if(r.kind!=="work"||r.invoice||r.invDoc||r.paid)continue;const a=r5(r.start,false),b=r.endEst?r.end:r5(r.end,true,5);if((r.start&&a!==r.start)||(r.end&&b!==r.end))ch.push({...r,start:r.start?a:r.start,end:r.end?b:r.end})}
   if(ch.length)Promise.all(ch.map(n=>putRow(n))).then(()=>render()).catch(saveFail)}
 const hhmm=t=>{const d=new Date(t);return pad(d.getHours())+":"+pad(d.getMinutes())};
 const CLK_LS="worklog-clock";
