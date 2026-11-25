@@ -3914,8 +3914,10 @@ $("form").addEventListener("submit",async e=>{
     if(!S.swipeSave)closeOv("ovForm");S.swipeSave=false;render();
     if(S.afterSave){const f=S.afterSave;S.afterSave=null;setTimeout(f,60)}
     if(needPush){
-      try{const res=await pushRow(r);delete r.pendingPush;await putRow(r);toast((res.created?"נשמר ונוסף ליומן":res.updated?"נשמר ועודכן ביומן":"נשמר")+extraMsg+clkMsg)}
-      catch(err){delete r.pendingPush;await putRow(r);const x=calErrText(err);toast("נשמר כאן, אבל לא ביומן: "+x.msg);setCal({state:"error",err})}
+      // בזמן שהיומן מתעדכן אפשר כבר לשלוח מחשבון / לסמן ביום דברים — לכן כותבים על הגרסה העדכנית של היום, ולא על העותק מתחילת השמירה
+      const fresh=()=>{const cur=S.rows.get(r.id);const n=cur&&cur!==r?{...cur}:r;for(const k of ["calEventId","calSpan","calName","calLink","source"])if(r[k]!==undefined)n[k]=r[k];delete n.pendingPush;return n};
+      try{const res=await pushRow(r);delete r.pendingPush;await putRow(fresh());toast((res.created?"נשמר ונוסף ליומן":res.updated?"נשמר ועודכן ביומן":"נשמר")+extraMsg+clkMsg)}
+      catch(err){delete r.pendingPush;await putRow(fresh());const x=calErrText(err);toast("נשמר כאן, אבל לא ביומן: "+x.msg);setCal({state:"error",err})}
     }else toast("נשמר"+extraMsg+clkMsg);
   }catch(err){S.afterSave=null;S.swipeSave=false;toast(err&&err.code==="quota_exceeded"?"נגמר המקום לשמירת נתונים. מחק רשומות ישנות ונסה שוב.":"לא הצלחתי לשמור. נסה שוב.")}
   finally{$("fSave").disabled=false;render()}
