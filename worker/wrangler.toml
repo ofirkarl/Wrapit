@@ -8,6 +8,11 @@ preview_urls = false
 binding = "TOKENS"
 id = "9e4f494e79bc44579e3f8344b11dae16"
 
+# חיבור ישיר ל-Worker של חשבונית ירוקה
+[[services]]
+binding = "GI"
+service = "green-invoice-ofir"
+
 [vars]
 GOOGLE_CLIENT_ID = "64711186711-mupvc3dcjbqb35k42ggembit3tppqq48.apps.googleusercontent.com"
 FIREBASE_PROJECT_ID = "wrapit-315b2"

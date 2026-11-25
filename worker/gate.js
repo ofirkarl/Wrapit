@@ -131,7 +131,9 @@ async function mcpCall(env, h, body) {
   if (!MCP_TOOLS.has(body.tool)) return fail(h, 400, "tool_not_found", "כלי לא מוכר");
   let r;
   try {
-    r = await fetch(env.MCP_URL, {
+    // Worker לא יכול לקרוא ל-Worker אחר באותו חשבון דרך workers.dev — לכן Service Binding (GI) כשיש
+    const call = env.GI ? (u, o) => env.GI.fetch(u, o) : fetch;
+    r = await call(env.MCP_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream" },
       body: JSON.stringify({ jsonrpc: "2.0", id: Date.now(), method: "tools/call", params: { name: body.tool, arguments: body.input || {} } }),
