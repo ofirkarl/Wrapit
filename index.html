@@ -4355,9 +4355,9 @@ function buildLines(rows){
   const fuR=work.filter(r=>(calcFor(r)||{}).fuel>0);
   // תוספות — כל סוג בשורה משלו, עם השם המדויק
   const AN=[["meals","ארוחות והפסקות"],["rings","טבעות נסיעה"],["travel","שעות נסיעה"],["night","תוספת לילה"],["turn","שעות מעבר"],["shabbat","שעות שבת"],["weekly","מנוחה שבועית"]];
-  for(const [k,t] of AN){const rr=work.filter(r=>{const c=calcFor(r)||{};return num(c[k])!==0});if(!rr.length)continue;
-    const nm=k==="travel"&&rr.some(r=>(calcFor(r)||{}).travelManual)?"נסיעות":t;
-    out.push({key:"add_"+k,description:nm,quantity:1,price:R2(rr.reduce((s,r)=>s+num(calcFor(r)[k]),0)),ids:rr.map(r=>r.id)})}
+  // כל התוספות (לילה, נסיעות, ארוחות, מעבר, שבת, מנוחה שבועית…) בשורה אחת — הפירוט נמצא במחשבון
+  {const rr=work.filter(r=>{const c=calcFor(r)||{};return AN.some(([k])=>num(c[k])!==0)});
+    if(rr.length)out.push({key:"add_other",description:"תוספות אחרות",quantity:1,price:R2(rr.reduce((t,r)=>{const c=calcFor(r);return t+AN.reduce((u,[k])=>u+num(c[k]),0)},0)),ids:rr.map(r=>r.id)})}
   {const mr=work.filter(r=>num((calcFor(r)||{}).misc)!==0);const by=new Map();
     // כל הוצאה בשורה משלה (לפי הפירוט); כמה הוצאות באותו יום מתפצלות
     for(const r of mr){const its=Array.isArray(r.miscItems)&&r.miscItems.length>1?r.miscItems:[{d:r.miscDesc,a:calcFor(r).misc}];
