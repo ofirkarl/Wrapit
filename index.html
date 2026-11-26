@@ -2310,8 +2310,8 @@ async function syncFromCalendar({manual=false,year=false}={}){
       if(unsure)break;
       if(removedSet.has(r.id)||flagged.has(r.id)||r.weekendFlag)continue;
       if(r.kind==="work"&&r.calEventId&&r.date>=mStart&&r.date<=mEnd&&!seen.has(r.calEventId+"|"+r.date)&&!r.pendingPush){
-        if(!(r.invoice||r.invDoc||r.paid||r.keepGone||hasUserData(r)||r.calcSent))gone.push(r);
-        else if(!r.missing){writes.push({...r,missing:true});changed++}
+        // נמחק מהיומן = נמחק מהאפליקציה, גם אם יש בו שעות, חשבונית או מחשבון שנשלח (אפשר לבטל מההודעה)
+        if(!r.keepGone)gone.push(r);
       }
     }
     for(const w of writes){await W(putRow(w))}
@@ -2439,7 +2439,6 @@ function stateChips(r){
   if(r.kind==="work"&&r.dayType==="shoot"&&!num(r.daily))s+=`<span class="chip warn" title="${esc(r.rateNote||"")}">חסרה יומית</span>`;
   if(r.kind==="work"&&r.dayType==="prep"&&!num(r.prep))s+=`<span class="chip warn" title="${esc(r.rateNote||"")}">חסר סכום ${prepLabel(r)}</span>`;
   if(r.kind==="work"&&r.endEst&&r.end)s+=`<span class="chip est" title="שעת הסיום הגיעה מהקולשיט. עדכן אותה בסוף היום.">סיום משוער</span>`;
-  if(r.missing)s+=`<span class="chip err">נמחק מהיומן</span>`;
   if(r.weekendFlag)s+=`<span class="chip warn" title="היום הזה הגיע מאירוע רצוף ביומן. לפי הכלל, שישי ושבת באירוע רצוף לא נחשבים יום עבודה. השארתי אותו כי הזנת בו נתונים — מחק אותו אם לא עבדת.">סופ״ש באירוע רצוף</span>`;
   return s;
 }
@@ -3490,8 +3489,17 @@ function clockSummary(row,start,end,elapsedMs,mode){
   openOv("ovClkSum");
 }
 function draftCalcFor(d){const id=d.id||"__clk";const rows=[...S.rows.values()].filter(r=>r.id!==id).map(migrate);rows.push({...d,id});return computeAll(rows).get(id)}
-function clockStop(){
-  const C=getClock();if(!C)return;const end=Math.max(ts5(Date.now(),true),C.start+3e5);const r=C.rowId&&S.rows.get(C.rowId);
+async function clockStop(){
+  const C=getClock();if(!C)return;const r=C.rowId&&S.rows.get(C.rowId);
+  // שעון שנעצר אחרי פחות משעה — שנוי במחלוקת: שואלים אם היום נחשב
+  const ran=Date.now()-C.start;
+  if(ran<36e5){const no=$("cNo"),nt=no.textContent;no.textContent="לא נחשב";
+    const ok=await confirmDlg("היום הזה נחשב?",`השעון רץ ${Math.max(1,Math.round(ran/6e4))} דקות בלבד.`,"כן, נחשב");no.textContent=nt;
+    if(ok===null)return;
+    if(ok===false){setClock(null);const cur=r&&S.rows.get(r.id);
+      if(cur&&(cur.start||cur.end))withTimeout(putRow({...cur,start:"",end:"",endEst:false}),6000).then(()=>render()).catch(e=>{if(!e||e.code!=="timeout")saveFail(e)});
+      toast("השעון בוטל. היום לא נחשב");render();return}}
+  const end=Math.max(ts5(Date.now(),true),C.start+3e5);
   setClock({...C,end});
   if(r){clockSync()}
   clockSummary(r||{kind:"work",date:ymd(new Date(C.start))},hhmm(C.start),hhmm(end),end-C.start);
