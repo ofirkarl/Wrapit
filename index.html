@@ -3379,7 +3379,8 @@ async function clockSync(){
 }
 window.addEventListener("online",()=>{if(S.clkPending)clockSync()});
 setInterval(()=>{if(S.clkPending)clockSync()},20000);
-function clockTodayRows(){const t=ymd(new Date());return [...S.rows.values()].filter(r=>r.kind==="work"&&r.date===t).sort((a,b)=>(a.dayType==="prep")-(b.dayType==="prep"))}
+// השעון לא נרשם על יום הכנה/זיכוי (שם לא רואים שעות). אם היום יש רק הכנה — השעון פותח יום עבודה נפרד, עם אותה הפקה
+function clockTodayRows(){const t=ymd(new Date());return [...S.rows.values()].filter(r=>r.kind==="work"&&r.date===t&&r.dayType!=="prep")}
 function renderClock(){
   const btn=$("clkBtn"),pop=$("clkPop");if(!btn)return;const C=getClock();
   const off=S.clkPending?`<div class="off">${ico("off",15)} אין חיבור — נשמר במכשיר ויישלח כשהחיבור יחזור</div>`:"";
@@ -3500,12 +3501,20 @@ async function clockStop(){
       if(cur&&(cur.start||cur.end))withTimeout(putRow({...cur,start:"",end:"",endEst:false}),6000).then(()=>render()).catch(e=>{if(!e||e.code!=="timeout")saveFail(e)});
       toast("השעון בוטל. היום לא נחשב");render();return}}
   const end=Math.max(ts5(Date.now(),true),C.start+3e5);
-  setClock({...C,end});
-  if(r){clockSync()}
-  clockSummary(r||{kind:"work",date:ymd(new Date(C.start))},hhmm(C.start),hhmm(end),end-C.start);
+  let row=r;
+  // שעון ביום שיש בו רק הכנה/זיכוי: נפתח יום עבודה נפרד עם השעות, באותה הפקה. יום ההכנה נשאר כמו שהוא
+  if(!row){const d=ymd(new Date(C.start)),pr=[...S.rows.values()].find(x=>x.kind==="work"&&x.date===d&&x.dayType==="prep");
+    if(pr){const kn=knownFor(pr.production);
+      row={id:uid(),kind:"work",dayType:"shoot",date:d,production:pr.production,company:pr.company||"",calc:pr.calc||S.settings.defaultCalc||"drama",
+        start:hhmm(C.start),end:hhmm(end),daily:kn&&kn.daily?kn.daily:null,misc:0,prep:0,invoice:false,paid:false,notes:"",source:"clock"};
+      withTimeout(putRow(row),6000).then(()=>render()).catch(e=>{if(!e||e.code!=="timeout")saveFail(e)})}}
+  setClock({...C,end,...(row&&!r?{rowId:row.id}:{})});
+  if(row){clockSync()}
+  clockSummary(row||{kind:"work",date:ymd(new Date(C.start))},hhmm(C.start),hhmm(end),end-C.start);
 }
 function clockOpenNew(){const C=getClock();if(!C||!C.end)return;S.clockPending=true;
-  openForm(null,{date:ymd(new Date(C.start)),start:hhmm(C.start),end:hhmm(C.end),...(S.clkExtra||{})})}
+  const d=ymd(new Date(C.start)),pr=[...S.rows.values()].find(r=>r.kind==="work"&&r.date===d&&r.dayType==="prep");
+  openForm(null,{date:d,start:hhmm(C.start),end:hhmm(C.end),...(pr?{production:pr.production,company:pr.company,calc:pr.calc}:{}),...(S.clkExtra||{})})}
 function clkElapsed(C){const t=Math.max(0,Math.floor((Date.now()-C.start)/1000));return `${Math.floor(t/3600)}:${pad(Math.floor(t/60)%60)}:${pad(t%60)}`}
 setInterval(()=>{const C=S.settings&&S.settings.clock;if(!(C&&C.start&&!C.end))return;const b=$("clkBtn");if(b)b.innerHTML=`${ico("clock",16)} ${clkElapsed(C)} בעבודה${S.clkPending?" ·":""}`;const e=$("clkEl");if(e)e.textContent=clkElapsed(C)},1000);
 /* שעות בפורמט 24 שעות בכל מכשיר: שדות זמן הופכים לשדות טקסט HH:MM */
