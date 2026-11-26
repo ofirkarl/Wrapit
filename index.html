@@ -1036,6 +1036,7 @@ body{overflow-x:clip}
 .fX{position:absolute;top:12px;left:12px;width:40px;height:40px;z-index:3}
 #fInv{width:100%;margin-top:14px;justify-content:center}
 [data-skin="riso"] #fInv{border-color:var(--pink);color:var(--ink)}
+.pgwait{font-weight:400;opacity:.75;margin-inline-start:2px}
 [data-skin="riso"] .pgfoot.mid{border-bottom:2px solid var(--ink);padding-bottom:12px;margin-bottom:0}
 .cfday.fut{opacity:.45;cursor:default}
 .cfmv{font-size:.82em;opacity:.85;padding:0 34px 8px 2px;margin-top:-4px}.cfmv .linkbtn{font-size:inherit;padding:0}
@@ -2218,16 +2219,20 @@ function eventDays(e){
 function isWeekend(d){const w=PayEngine.dow(d);return w===5||w===6}
 function hasUserData(r){return !!(r.start||r.end||r.invoice||r.paid||r.invDoc||num(r.misc)||(r.notes||"").trim()||r.car||(r.otOverride!==undefined&&r.otOverride!==null&&r.otOverride!==""))}
 async function syncFromCalendar({manual=false,year=false}={}){
-  if(!S.mcp||S.syncing)return;
-  S.syncing=true;setCal({state:"loading"});
+  if(!S.mcp)return;
+  // רענון קודם שנתקע (למשל שמירה שמחכה לשרת) לא חוסם רענון חדש לנצח
+  if(S.syncing&&Date.now()-(S.syncAt||0)<45e3){if(manual)toast("הרענון כבר רץ…");return}
+  const run=S.syncRun=(S.syncRun||0)+1;
+  S.syncing=true;S.syncAt=Date.now();setCal({state:"loading"});
   const m=S.month,y=m.slice(0,4);
   // החודש המוצג ועוד חודשיים קדימה, כדי שעבודות עתידיות שנרשמו ביומן ייכנסו מיד
   const mStart=year?y+"-01-01":m+"-01",mEnd=year?(y+"-12-31"):monthEnd(addMonths(m,2));
   const from=addMonths(mStart.slice(0,7),-3)+"-01",to=monthEnd(addMonths(mEnd.slice(0,7),3));
   try{
     let evs;
-    try{evs=await listGrape(from,to)}
-    catch(e){if(e&&e.retryable){await new Promise(r=>setTimeout(r,(e.retryAfterMs||800)+Math.random()*600));evs=await listGrape(from,to)}else throw e}
+    const lg=()=>withTimeout(listGrape(from,to),30e3);
+    try{evs=await lg()}
+    catch(e){if(e&&(e.retryable||e.code==="timeout")){await new Promise(r=>setTimeout(r,(e.retryAfterMs||800)+Math.random()*600));evs=await lg()}else throw e}
     // shoot candidates with rate (for linking)
     const shoots=evs.filter(e=>!isPrepName(e.summary)&&!CREDIT_RE.test(" "+String(e.description||"").replace(/\s+/g," ")+" "));
     const rated=[];shoots.forEach(e=>{const r=parseRate(e.description);if(r){const ds=eventDays(e);rated.push({id:e.id,name:(e.summary||"").trim(),tokens:tokens(e.summary),rate:r,date:ds[0]||""})}});
@@ -2293,7 +2298,9 @@ async function syncFromCalendar({manual=false,year=false}={}){
       if(hasUserData(r)){flagged.add(r.id);if(!r.weekendFlag||r.missing){writes.push({...r,weekendFlag:true,missing:false});changed++}}
       else removals.push(r.id);
     }
-    for(const id of removals){await delRow(id);seen.add("__removed__"+id)}
+    // השינוי נכנס מיד לתצוגה ולמטמון המקומי; לא מחכים לאישור השרת (שעלול להתעכב) כדי לסיים את הרענון
+    const W=p=>withTimeout(p,8000).catch(e=>{if(!e||e.code!=="timeout")saveFail(e)});
+    for(const id of removals){await W(delRow(id));seen.add("__removed__"+id)}
     const removedSet=new Set(removals);
     // rows of this month linked to events that no longer exist (only judge events that would fall inside the fetched window)
     // נמחק מהיומן → נמחק גם מהאפליקציה, אלא אם כבר יש לו חשבונית או שסומן שולם (אז רק מסומן "נמחק מהיומן")
@@ -2307,17 +2314,17 @@ async function syncFromCalendar({manual=false,year=false}={}){
         else if(!r.missing){writes.push({...r,missing:true});changed++}
       }
     }
-    for(const w of writes){await putRow(w)}
+    for(const w of writes){await W(putRow(w))}
     // הגנות: רשימה חלקית או ריקה (גם אחרי שינוי צבע/יומן בהגדרות) — לא מוחקים. הרבה מחיקות בבת אחת — רק באישור.
     if(gone.length>3){const ok=await confirmDlg(`להסיר ${gone.length} ימים שלא נמצאו ביומן?`,esc([...new Set(gone.map(r=>r.production||"יום עבודה"))].slice(0,6).join(", "))+`<br><span class="sub">ימים עם שעות, חשבונית או סימון שולם לא מוסרים.</span>`,"הסר");if(!ok){for(const r of gone)await putRow({...r,missing:true,keepGone:true});gone.length=0}}
-    if(gone.length){for(const r of gone)await delRow(r.id);changed+=gone.length;
+    if(gone.length){for(const r of gone)await W(delRow(r.id));changed+=gone.length;
       const names=[...new Set(gone.map(r=>r.production||"יום עבודה"))].slice(0,3).join(", ");
       toastUndo(`נמחקו ${gone.length===1?"יום אחד":gone.length+" ימים"} שהוסרו מהיומן (${names})`,async()=>{for(const r of gone)await putRow({...r,missing:true,keepGone:true});render();toast("שוחזר")})}
     setCal({state:"ok",at:new Date(),count:items.length,added,changed});
     if(removals.length)toast(`הוסרו ${removals.length} ימי שישי/שבת שהגיעו מאירועים רצופים ביומן`);
     else if(manual)toast(added||changed?`עודכן מהיומן: ${added} ימים חדשים, ${changed} עדכונים`:"הכל מעודכן מול היומן");
-  }catch(e){setCal({state:"error",err:e})}
-  finally{S.syncing=false;render()}
+  }catch(e){if(run===S.syncRun)setCal({state:"error",err:e})}
+  finally{if(run===S.syncRun)S.syncing=false;render()}
 }
 
 /* push a row to calendar (create / update) — only from a click */
@@ -2553,9 +2560,15 @@ function renderWork(rows,allTime){
     cards.innerHTML=rows.map(r=>{const g=pgOf(r);if(!g)return row(r,null);if(r.id!==g.first)return "";const an=S.pgAnim&&S.pgAnim.key===g.key?" pgIn":"",n=g.list.length+1;
       const kid=(h,i)=>h.replace(/^<div class="/,`<div data-pgk="${esc(g.key)}" style="--i:${i};--j:${n-1-i}" class="pgkid${an} `);
       if(g.collapsed)return grp(g);
-      // שורת "שלח מחשבון / שלח חשבונית" יושבת מתחת ליום האחרון שכבר התקיים; ימים עתידיים מופיעים מתחתיה
-      const td=ymd(new Date());let cut=-1;g.list.forEach((x,i)=>{if(x.date&&x.date<=td)cut=i});if(cut<0)cut=g.list.length-1;
-      const parts=g.list.map(x=>row(x,g));parts.splice(cut+1,0,`<div class="pgfoot${cut<g.list.length-1?" mid":""}">${wkPanel(g)}<div class="pgcalc"><button type="button" class="btn" data-cfopen="${esc(g.key)}">${ico("calc",16)} שלח מחשבון</button>${pgInvBtn(g)}</div></div>`);
+      // סבב: ימי ההפקה שעוד לא הופקה עליהם חשבונית, באותו חודש (חשבונית ומחשבון יוצאים לכל המאוחר בסוף החודש).
+      // שורת "שלח מחשבון / שלח חשבונית" יושבת אחרי היום האחרון בסבב, ונפתחת ביום הזה. בלי סבב פתוח: מתחת ליום האחרון שכבר התקיים
+      const td=ymd(new Date());let cut=-1,rm="";g.list.forEach((x,i)=>{if(!x.invoice&&!x.invDoc){const m=(x.date||"").slice(0,7);if(!rm)rm=m;if(m===rm)cut=i}});
+      if(cut<0){g.list.forEach((x,i)=>{if(x.date&&x.date<=td)cut=i});if(cut<0)cut=g.list.length-1}
+      const wait=!g.list[cut].invoice&&!g.list[cut].invDoc&&g.list[cut].date>td?g.list[cut].date:"";
+      const wl=wait?` <small class="pgwait">${+wait.slice(8)}/${+wait.slice(5,7)}</small>`:"";
+      const btns=wait?`<button type="button" class="btn" disabled title="נפתח אחרי ${fmtDate(wait)}">${ico("calc",16)} שלח מחשבון${wl}</button><button type="button" class="btn primary" disabled title="נפתח אחרי ${fmtDate(wait)}">${ico("file",16)} שלח חשבונית${wl}</button>`
+        :`<button type="button" class="btn" data-cfopen="${esc(g.key)}">${ico("calc",16)} שלח מחשבון</button>${pgInvBtn(g)}`;
+      const parts=g.list.map(x=>row(x,g));parts.splice(cut+1,0,`<div class="pgfoot${cut<g.list.length-1?" mid":""}">${wkPanel(g)}<div class="pgcalc">${btns}</div></div>`);
       return grp(g)+parts.map((h,i)=>kid(h,i)).join("")}).join("")+
       `<div class="rcards-total"><span>סה״כ ${rows.length-futN} ימים${futN?`<span class="futnote"> · ${futN} עתידיים לא נספרים</span>`:""}</span><span>${money(sums.total)}</span></div>`;
     return}
