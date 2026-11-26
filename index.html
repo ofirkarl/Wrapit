@@ -2208,7 +2208,8 @@ function eventDays(e){
   if(e.start&&e.start.date){let d=e.start.date;const end=e.end&&e.end.date||addDays(d,1);while(d<end&&days.length<62){days.push(d);d=addDays(d,1)}}
   else if(e.start&&e.start.dateTime){
     const sd=e.start.dateTime.slice(0,10),ed=(e.end&&e.end.dateTime||e.start.dateTime).slice(0,10),et=(e.end&&e.end.dateTime||"").slice(11,16);
-    let last=ed;if(ed>sd&&et==="00:00")last=addDays(ed,-1);
+    // יום שנגמר אחרי חצות שייך לתאריך שבו התחיל: סיום עד 08:00 לא פותח יום נוסף
+    let last=ed;if(ed>sd&&et<="08:00")last=addDays(ed,-1);
     let d=sd;while(d<=last&&days.length<62){days.push(d);d=addDays(d,1)}
   }
   return days;
